@@ -1,6 +1,6 @@
 {
   "name": "apostle-http",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Lightweight HTTP client focusing on simplicity and utility based on the Fetch API ",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
