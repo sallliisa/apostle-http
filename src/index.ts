@@ -37,46 +37,46 @@ export class Apostle {
     }
   }
 
-  public async get(path: string | {url: string, query?: Record<string, string>}) {
+  public async get(path: string | {path: string, query?: Record<string, string>}) {
     try {
-      const pathObject = typeof path === 'string' ? {url: path} : path
-      return await this.dispatch(pathObject.url, pathObject.query, undefined, {method: 'GET'})
+      const pathObject = typeof path === 'string' ? {path} : path
+      return await this.dispatch(pathObject.path, pathObject.query, undefined, {method: 'GET'})
     } catch (error) {
       throw error
     }
   }
 
-  public async post(path: string | {url: string, query?: Record<string, string>}, body?: Record<string, any>) {
+  public async post(path: string | {path: string, query?: Record<string, string>}, body?: Record<string, any>) {
     try {
-      const pathObject = typeof path === 'string' ? {url: path} : path
-      return await this.dispatch(pathObject.url, pathObject.query, body, {method: 'POST'})
+      const pathObject = typeof path === 'string' ? {path} : path
+      return await this.dispatch(pathObject.path, pathObject.query, body, {method: 'POST'})
     } catch (error) {
       throw error
     }
   }
 
-  public async put(path: string | {url: string, query?: Record<string, string>}, body?: Record<string, any>) {
+  public async put(path: string | {path: string, query?: Record<string, string>}, body?: Record<string, any>) {
     try {
-      const pathObject = typeof path === 'string' ? {url: path} : path
-      return await this.dispatch(pathObject.url, pathObject.query, body, {method: 'PUT'})
+      const pathObject = typeof path === 'string' ? {path} : path
+      return await this.dispatch(pathObject.path, pathObject.query, body, {method: 'PUT'})
     } catch (error) {
       throw error
     }
   }
 
-  public async patch(path: string | {url: string, query?: Record<string, string>}, body?: Record<string, any>) {
+  public async patch(path: string | {path: string, query?: Record<string, string>}, body?: Record<string, any>) {
     try {
-      const pathObject = typeof path === 'string' ? {url: path} : path
-      return await this.dispatch(pathObject.url, pathObject.query, body, {method: 'PATCH'})
+      const pathObject = typeof path === 'string' ? {path} : path
+      return await this.dispatch(pathObject.path, pathObject.query, body, {method: 'PATCH'})
     } catch (error) {
       throw error
     }
   }
 
-  public async delete(path: string | {url: string, query?: Record<string, string>}, body?: Record<string, any>) {
+  public async delete(path: string | {path: string, query?: Record<string, string>}, body?: Record<string, any>) {
     try {
-      const pathObject = typeof path === 'string' ? {url: path} : path
-      return await this.dispatch(pathObject.url, pathObject.query, body, {method: 'DELETE'})
+      const pathObject = typeof path === 'string' ? {path} : path
+      return await this.dispatch(pathObject.path, pathObject.query, body, {method: 'DELETE'})
     } catch (error) {
       throw error
     }
