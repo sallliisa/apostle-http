@@ -1,0 +1,33 @@
+{
+  "name": "apostle",
+  "version": "1.0.0",
+  "description": "Lightweight HTTP client based on Fetch API",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sallliisa/apostle.git"
+  },
+  "keywords": [
+    "http",
+    "client",
+    "axios",
+    "fetch"
+  ],
+  "author": "sallliisa",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sallliisa/apostle/issues"
+  },
+  "homepage": "https://github.com/sallliisa/apostle#readme",
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  }
+}
