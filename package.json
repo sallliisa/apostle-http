@@ -1,7 +1,7 @@
 {
-  "name": "apostle",
+  "name": "apostle-http",
   "version": "1.0.0",
-  "description": "Lightweight HTTP client based on Fetch API",
+  "description": "Lightweight HTTP client focusing on simplicity and utility based on the Fetch API ",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sallliisa/apostle.git"
+    "url": "git+https://github.com/sallliisa/apostle-http.git"
   },
   "keywords": [
     "http",
@@ -22,9 +22,9 @@
   "author": "sallliisa",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/sallliisa/apostle/issues"
+    "url": "https://github.com/sallliisa/apostle-http/issues"
   },
-  "homepage": "https://github.com/sallliisa/apostle#readme",
+  "homepage": "https://github.com/sallliisa/apostle-http#readme",
   "devDependencies": {
     "ts-node": "^10.9.2",
     "tsup": "^8.0.1",
