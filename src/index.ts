@@ -1,22 +1,26 @@
 export type ApostleEffect = {onSuccess: (response: Response) => Promise<void>, onError: (error: unknown) => Promise<void>}
 export type ApostleTransformer = {request: (body: Record<string, any>) => Record<string, any>, response: (body: Record<string, any>) => Record<string, any>}
+export type ApostleInterceptor = (init: RequestInit) => RequestInit
 
 export class Apostle {
   private baseURL: string
   private init?: RequestInit
   private effect: ApostleEffect
   private transformer: ApostleTransformer
+  private interceptor: ApostleInterceptor
 
   constructor(
     baseURL: string,
     init?: RequestInit,
     effect: ApostleEffect = {onSuccess: async () => {}, onError: async () => {}},
-    transformer: ApostleTransformer = {request: (body) => body, response: (body) => body}
+    transformer: ApostleTransformer = {request: (body) => body, response: (body) => body},
+    interceptor: ApostleInterceptor = (init) => init
   ) {
     this.baseURL = baseURL
     this.init = init
     this.effect = effect
     this.transformer = transformer
+    this.interceptor = interceptor
   }
 
   public async dispatch(path: string, query?: Record<string, string>, body?: Record<string, any>, init?: Partial<RequestInit>) {
@@ -24,8 +28,7 @@ export class Apostle {
       const response = await fetch(
         `${this.baseURL}/${path}?${new URLSearchParams(query)}`,
         {
-          ...this.init,
-          ...init,
+          ...(this.interceptor({...this.init, ...init})),
           body: body ? JSON.stringify(this.transformer.request(body)) : undefined
         }
       )
