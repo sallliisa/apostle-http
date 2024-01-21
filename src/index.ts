@@ -4,14 +4,14 @@ export type ApostleInterceptor = (init: RequestInit) => RequestInit
 
 export class Apostle {
   private baseURL: string
-  private init?: RequestInit
+  private init: RequestInit
   private effect: ApostleEffect
   private transformer: ApostleTransformer
   private interceptor: ApostleInterceptor
 
   constructor(
     baseURL: string,
-    init?: RequestInit,
+    init: RequestInit = {},
     effect: ApostleEffect = {onSuccess: async () => {}, onError: async () => {}},
     transformer: ApostleTransformer = {request: (body) => body, response: (body) => body},
     interceptor: ApostleInterceptor = (init) => init
@@ -23,13 +23,14 @@ export class Apostle {
     this.interceptor = interceptor
   }
 
-  public async dispatch(path: string, query?: Record<string, string>, body?: Record<string, any>, init?: Partial<RequestInit>) {
+  public async dispatch(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, query?: Record<string, string>, body?: Record<string, any>) {
     try {
       const response = await fetch(
         `${this.baseURL}/${path}?${new URLSearchParams(query)}`,
         {
-          ...(this.interceptor({...this.init, ...init})),
-          body: body ? JSON.stringify(this.transformer.request(body)) : undefined
+          ...this.interceptor(this.init),
+          body: body ? JSON.stringify(this.transformer.request(body)) : undefined,
+          method
         }
       )
       if (!response.ok) throw response
@@ -43,7 +44,7 @@ export class Apostle {
   public async get(path: string | {path: string, query?: Record<string, string>}) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
-      return await this.dispatch(pathObject.path, pathObject.query, undefined, {method: 'GET'})
+      return await this.dispatch('GET', pathObject.path, pathObject.query, undefined)
     } catch (error) {
       throw error
     }
@@ -52,7 +53,7 @@ export class Apostle {
   public async post(path: string | {path: string, query?: Record<string, string>}, body?: Record<string, any>) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
-      return await this.dispatch(pathObject.path, pathObject.query, body, {method: 'POST'})
+      return await this.dispatch('POST', pathObject.path, pathObject.query, body)
     } catch (error) {
       throw error
     }
@@ -61,7 +62,7 @@ export class Apostle {
   public async put(path: string | {path: string, query?: Record<string, string>}, body?: Record<string, any>) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
-      return await this.dispatch(pathObject.path, pathObject.query, body, {method: 'PUT'})
+      return await this.dispatch('PUT', pathObject.path, pathObject.query, body)
     } catch (error) {
       throw error
     }
@@ -70,7 +71,7 @@ export class Apostle {
   public async patch(path: string | {path: string, query?: Record<string, string>}, body?: Record<string, any>) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
-      return await this.dispatch(pathObject.path, pathObject.query, body, {method: 'PATCH'})
+      return await this.dispatch('PATCH', pathObject.path, pathObject.query, body)
     } catch (error) {
       throw error
     }
@@ -79,7 +80,7 @@ export class Apostle {
   public async delete(path: string | {path: string, query?: Record<string, string>}, body?: Record<string, any>) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
-      return await this.dispatch(pathObject.path, pathObject.query, body, {method: 'DELETE'})
+      return await this.dispatch('DELETE', pathObject.path, pathObject.query, body)
     } catch (error) {
       throw error
     }
