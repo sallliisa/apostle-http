@@ -1,6 +1,7 @@
 export type ApostleEffect = {onSuccess: (response: Response) => Promise<void>, onError: (error: unknown) => Promise<void>}
 export type ApostleTransformer = {request: (body: Record<string, any>) => Record<string, any>, response: (body: Record<string, any>) => Record<string, any>}
 export type ApostleInterceptor = (init: RequestInit) => RequestInit
+export type ApostleRequestBody = Record<string, any> | string | FormData | URLSearchParams
 
 export class Apostle {
   private baseURL: string
@@ -23,13 +24,18 @@ export class Apostle {
     this.interceptor = interceptor
   }
 
-  public async dispatch(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, query?: Record<string, string>, body?: Record<string, any>, init: RequestInit = {}) {
+  public async dispatch(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, query?: Record<string, string>, body?: ApostleRequestBody, init: RequestInit = {}) {
     try {
+      const combinedInit = {...this.init, ...init}
+      const inferredInit: RequestInit = {}
+      const isBodyPlainObject = body && body.constructor === Object
+      if (isBodyPlainObject) ((inferredInit.headers ??= {} ) as Record<string, string>)['Content-Type'] = 'application/json'
       const response = await fetch(
         `${this.baseURL}/${path}?${new URLSearchParams(query)}`,
         {
-          ...this.interceptor({...this.init, ...init}),
-          body: body ? JSON.stringify(this.transformer.request(body)) : undefined,
+          ...this.interceptor({...inferredInit, ...combinedInit}),
+          headers: {...inferredInit.headers, ...combinedInit.headers},
+          body: isBodyPlainObject ? JSON.stringify(this.transformer.request(body as Record<string, string>)) : body as Exclude<ApostleRequestBody, Record<string, string>>,
           method
         }
       )
@@ -50,7 +56,7 @@ export class Apostle {
     }
   }
 
-  public async post(path: string | {path: string, query?: Record<string, string>}, body?: Record<string, any>, init?: RequestInit) {
+  public async post(path: string | {path: string, query?: Record<string, string>}, body?: ApostleRequestBody, init?: RequestInit) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
       return await this.dispatch('POST', pathObject.path, pathObject.query, body, init)
@@ -59,7 +65,7 @@ export class Apostle {
     }
   }
 
-  public async put(path: string | {path: string, query?: Record<string, string>}, body?: Record<string, any>, init?: RequestInit) {
+  public async put(path: string | {path: string, query?: Record<string, string>}, body?: ApostleRequestBody, init?: RequestInit) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
       return await this.dispatch('PUT', pathObject.path, pathObject.query, body, init)
@@ -68,7 +74,7 @@ export class Apostle {
     }
   }
 
-  public async patch(path: string | {path: string, query?: Record<string, string>}, body?: Record<string, any>, init?: RequestInit) {
+  public async patch(path: string | {path: string, query?: Record<string, string>}, body?: ApostleRequestBody, init?: RequestInit) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
       return await this.dispatch('PATCH', pathObject.path, pathObject.query, body, init)
@@ -77,7 +83,7 @@ export class Apostle {
     }
   }
 
-  public async delete(path: string | {path: string, query?: Record<string, string>}, body?: Record<string, any>, init?: RequestInit) {
+  public async delete(path: string | {path: string, query?: Record<string, string>}, body?: ApostleRequestBody, init?: RequestInit) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
       return await this.dispatch('DELETE', pathObject.path, pathObject.query, body, init)
