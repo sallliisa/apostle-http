@@ -24,33 +24,22 @@ export class Apostle {
     this.interceptor = interceptor
   }
 
-  public async dispatch(
-    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-    path: string,
-    query?: Record<string, string>,
-    body?: ApostleRequestBody,
-    init?: RequestInit
-  ) {
+  public async dispatch(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, query?: Record<string, string | undefined>, body?: ApostleRequestBody, init: RequestInit = {}) {
     try {
-
+      const combinedInit = {...this.init, ...init}
+      const inferredInit: RequestInit = {}
       const isBodyPlainObject = body && body.constructor === Object
-      const requestHeaders: HeadersInit = {...this.init.headers, ...init?.headers}
-      if (isBodyPlainObject) (requestHeaders as Record<string, string>)['Content-Type'] = 'application/json'
-
-      const response = await fetch( 
-        `${this.baseURL}/${path}?${new URLSearchParams(query)}`,
+      if (isBodyPlainObject) ((inferredInit.headers ??= {} ) as Record<string, string>)['Content-Type'] = 'application/json'
+      if (query) Object.keys(query).forEach(key => (query[key] === undefined || query[key] === null) ? delete query[key] : {});
+      const response = await fetch(
+        `${this.baseURL}/${path}?${new URLSearchParams(query as Record<string, string>)}`,
         {
-          ...this.interceptor({...this.init, ...init}),
-          headers: requestHeaders,
-          body:
-            isBodyPlainObject ?
-              JSON.stringify(this.transformer.request(body as Record<string, string>)) 
-                :
-              body as Exclude<ApostleRequestBody, Record<string, string>>,
+          ...this.interceptor({...inferredInit, ...combinedInit}),
+          headers: {...inferredInit.headers, ...combinedInit.headers},
+          body: isBodyPlainObject ? JSON.stringify(this.transformer.request(body as Record<string, string>)) : body as Exclude<ApostleRequestBody, Record<string, string>>,
           method
         }
       )
-
       if (!response.ok) throw response
       await this.effect.onSuccess(response)
       return this.transformer.response(await response.json())
