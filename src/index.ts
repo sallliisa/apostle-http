@@ -4,14 +4,14 @@ export type ApostleInterceptor = (init: RequestInit) => RequestInit
 export type ApostleRequestBody = Record<string, any> | string | FormData | URLSearchParams
 
 export class Apostle {
-  private baseURL: string
+  private baseURL?: string
   private init: RequestInit
   private effect: ApostleEffect
   private transformer: ApostleTransformer
   private interceptor: ApostleInterceptor
 
   constructor(
-    baseURL: string,
+    baseURL?: string,
     init: RequestInit = {},
     effect: ApostleEffect = {onSuccess: async () => {}, onError: async () => {}},
     transformer: ApostleTransformer = {request: (body) => body, response: (body) => body},
@@ -26,16 +26,15 @@ export class Apostle {
 
   public async dispatch(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, query?: Record<string, string | undefined>, body?: ApostleRequestBody, init: RequestInit = {}) {
     try {
-      const combinedInit = {...this.init, ...init}
-      const inferredInit: RequestInit = {}
+      if (query) Object.keys(query).forEach(key => {if (query[key] === undefined || query[key] === null) delete query[key]});
       const isBodyPlainObject = body && body.constructor === Object
-      if (isBodyPlainObject) ((inferredInit.headers ??= {} ) as Record<string, string>)['Content-Type'] = 'application/json'
-      if (query) Object.keys(query).forEach(key => (query[key] === undefined || query[key] === null) ? delete query[key] : {});
+      const inferredHeaders: HeadersInit = {}
+      if (isBodyPlainObject) inferredHeaders['Content-Type'] = 'application/json'
       const response = await fetch(
         `${this.baseURL}/${path}?${new URLSearchParams(query as Record<string, string>)}`,
         {
-          ...this.interceptor({...inferredInit, ...combinedInit}),
-          headers: {...inferredInit.headers, ...combinedInit.headers},
+          ...this.interceptor({...this.init, ...init}),
+          headers: {...inferredHeaders, ...this.init.headers, ...init.headers},
           body: isBodyPlainObject ? JSON.stringify(this.transformer.request(body as Record<string, string>)) : body as Exclude<ApostleRequestBody, Record<string, string>>,
           method
         }
