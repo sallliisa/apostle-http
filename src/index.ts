@@ -2,6 +2,18 @@ export type ApostleEffect = {onSuccess: (response: Response) => Promise<void>, o
 export type ApostleTransformer = {request: (body: Record<string, any>) => Record<string, any>, response: (body: Record<string, any>) => Record<string, any>}
 export type ApostleInterceptor = (init: RequestInit) => RequestInit
 export type ApostleRequestBody = Record<string, any> | string | FormData | URLSearchParams
+export type ApostleResponseType = 'arrayBuffer' | 'blob' | 'clone' | 'formData' | 'json' | 'text' | 'raw'
+export type ApostleDefaultsOptions = {
+  responseType: ApostleResponseType
+}
+export type ApostleConstructorOptions = {
+  baseURL?: string,
+  init?: RequestInit,
+  effect?: ApostleEffect,
+  transformer?: ApostleTransformer,
+  interceptor?: ApostleInterceptor,
+  defaults?: ApostleDefaultsOptions
+}
 
 export class Apostle {
   private baseURL?: string
@@ -9,19 +21,17 @@ export class Apostle {
   private effect: ApostleEffect
   private transformer: ApostleTransformer
   private interceptor: ApostleInterceptor
+  private defaults: ApostleDefaultsOptions = {
+    responseType: 'raw'
+  }
 
-  constructor(
-    baseURL?: string,
-    init: RequestInit = {},
-    effect: ApostleEffect = {onSuccess: async () => {}, onError: async () => {}},
-    transformer: ApostleTransformer = {request: (body) => body, response: (body) => body},
-    interceptor: ApostleInterceptor = (init) => init
-  ) {
-    this.baseURL = baseURL
-    this.init = init
-    this.effect = effect
-    this.transformer = transformer
-    this.interceptor = interceptor
+  constructor(options: ApostleConstructorOptions) {
+    this.baseURL = options.baseURL
+    this.init = options.init ?? {}
+    this.effect = options.effect ?? {onSuccess: async () => {}, onError: async () => {}}
+    this.transformer = options.transformer ?? {request: (body) => body, response: (body) => body}
+    this.interceptor = options.interceptor ?? ((init) => init)
+    if (options.defaults?.responseType) this.defaults.responseType = options.defaults.responseType
   }
 
   public async dispatch(
@@ -29,8 +39,8 @@ export class Apostle {
     url: string,
     query?: Record<string, string | undefined>,
     body?: ApostleRequestBody,
+    responseType: ApostleResponseType = this.defaults.responseType,
     init: RequestInit = {},
-    as: 'arrayBuffer' | 'blob' | 'clone' | 'formData' | 'json' | 'text'  = 'json'
   ) {
     try {
       if (query) Object.keys(query).forEach(key => {if (query[key] === undefined || query[key] === null) delete query[key]});
@@ -48,52 +58,52 @@ export class Apostle {
       )
       if (!response.ok) throw response
       await this.effect.onSuccess(response)
-      return this.transformer.response(await response[as]())
+      return this.transformer.response(responseType === 'raw' ? response : await response[responseType]())
     } catch (response) {
       throw await this.effect.onError(response as Response)
     }
   }
 
-  public async get(path: string | {path: string, query?: Record<string, string>}, init?: RequestInit) {
+  public async get(path: string | {path: string, query?: Record<string, string>}, responseType?: ApostleResponseType, init?: RequestInit) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
-      return await this.dispatch('GET', `${this.baseURL}/${pathObject.path}`, pathObject.query, undefined, init)
+      return await this.dispatch('GET', `${this.baseURL}/${pathObject.path}`, pathObject.query, undefined, responseType, init)
     } catch (error) {
       throw error
     }
   }
 
-  public async post(path: string | {path: string, query?: Record<string, string>}, body?: ApostleRequestBody, init?: RequestInit) {
+  public async post(path: string | {path: string, query?: Record<string, string>}, body?: ApostleRequestBody, responseType?: ApostleResponseType, init?: RequestInit) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
-      return await this.dispatch('POST', `${this.baseURL}/${pathObject.path}`, pathObject.query, body, init)
+      return await this.dispatch('POST', `${this.baseURL}/${pathObject.path}`, pathObject.query, body, responseType, init)
     } catch (error) {
       throw error
     }
   }
 
-  public async put(path: string | {path: string, query?: Record<string, string>}, body?: ApostleRequestBody, init?: RequestInit) {
+  public async put(path: string | {path: string, query?: Record<string, string>}, body?: ApostleRequestBody, responseType?: ApostleResponseType, init?: RequestInit) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
-      return await this.dispatch('PUT', `${this.baseURL}/${pathObject.path}`, pathObject.query, body, init)
+      return await this.dispatch('PUT', `${this.baseURL}/${pathObject.path}`, pathObject.query, body, responseType, init)
     } catch (error) {
       throw error
     }
   }
 
-  public async patch(path: string | {path: string, query?: Record<string, string>}, body?: ApostleRequestBody, init?: RequestInit) {
+  public async patch(path: string | {path: string, query?: Record<string, string>}, body?: ApostleRequestBody, responseType?: ApostleResponseType, init?: RequestInit) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
-      return await this.dispatch('PATCH', `${this.baseURL}/${pathObject.path}`, pathObject.query, body, init)
+      return await this.dispatch('PATCH', `${this.baseURL}/${pathObject.path}`, pathObject.query, body, responseType, init)
     } catch (error) {
       throw error
     }
   }
 
-  public async delete(path: string | {path: string, query?: Record<string, string>}, body?: ApostleRequestBody, init?: RequestInit) {
+  public async delete(path: string | {path: string, query?: Record<string, string>}, body?: ApostleRequestBody, responseType?: ApostleResponseType, init?: RequestInit) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
-      return await this.dispatch('DELETE', `${this.baseURL}/${pathObject.path}`, pathObject.query, body, init)
+      return await this.dispatch('DELETE', `${this.baseURL}/${pathObject.path}`, pathObject.query, body, responseType, init)
     } catch (error) {
       throw error
     }
