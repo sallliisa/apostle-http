@@ -3,18 +3,52 @@ export type ApostleTransformer = {request: (body: Record<string, any>) => Record
 export type ApostleInterceptor = (init: RequestInit) => RequestInit
 export type ApostleRequestBody = Record<string, any> | string | FormData | URLSearchParams
 export type ApostleResponseType = 'arrayBuffer' | 'blob' | 'clone' | 'formData' | 'json' | 'text' | 'raw'
-export type ApostleConfiguration = {
+export type ApostleRequestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+
+export type ApostleRequestObject = {
+  method: ApostleRequestMethod,
+  url: string,
+  query?: Record<string, string | undefined>,
+  body?: ApostleRequestBody,
   responseType?: ApostleResponseType,
-  inferRequestBodyContentType?: boolean,
-  inferResponseBodyContentType?: boolean
+  init?: RequestInit,
 }
+
+export type ApostleConfiguration = {
+  defaultResponseType: ApostleResponseType,
+  inferRequestBodyContentType: boolean,
+  inferResponseBodyContentType: boolean,
+  parseObjectAsJSON: boolean
+}
+
 export type ApostleConstructorOptions = {
   baseURL?: string,
   init?: RequestInit,
   effect?: ApostleEffect,
   transformer?: ApostleTransformer,
   interceptor?: ApostleInterceptor,
-  config?: ApostleConfiguration
+  config?: Partial<ApostleConfiguration>
+}
+
+const ianaMediaTypeMethodMap: Record<string, ApostleResponseType> = {
+  "application/xhtml+xml": "text",
+  "application/json": "json",
+  "application/ld+json": "json",
+  "application/xml": "text",
+  "image/svg+xml": "text",
+}
+
+const ianaRegistriesMethodMap: Record<string, ApostleResponseType> = {
+  "application": "blob",
+  "audio": "blob",
+  "font": "blob",
+  "example": "text",
+  "image": "blob",
+  "message": "text",
+  "model": "blob",
+  "multipart": "formData",
+  "text": "text",
+  "video": "blob"
 }
 
 export class Apostle {
@@ -23,12 +57,7 @@ export class Apostle {
   private effect: ApostleEffect
   private transformer: ApostleTransformer
   private interceptor: ApostleInterceptor
-  private config: ApostleConfiguration = {
-    responseType: 'raw',
-    inferRequestBodyContentType: false,
-    inferResponseBodyContentType: false,
-  }
-  private ianaMediaTypeMethodMap?: Record<string, ApostleResponseType>
+  private config: ApostleConfiguration
 
   constructor(options: ApostleConstructorOptions) {
     this.baseURL = options.baseURL
@@ -36,97 +65,48 @@ export class Apostle {
     this.effect = options.effect ?? {onSuccess: async () => {}, onError: async () => {}}
     this.transformer = options.transformer ?? {request: (body) => body, response: (body) => body}
     this.interceptor = options.interceptor ?? ((init) => init)
-    if (options.config?.responseType) this.config.responseType = options.config.responseType
-    if (options.config?.inferResponseBodyContentType) {
-      this.ianaMediaTypeMethodMap = {
-        "application/java-archive": "blob",
-        "application/EDI-X12": "blob",
-        "application/EDIFACT": "blob",
-        "application/octet-stream": "blob",
-        "application/ogg": "blob",
-        "application/pdf": "blob", 
-        "application/xhtml+xml": "text",
-        "application/x-shockwave-flash": "blob",
-        "application/json": "json",
-        "application/ld+json": "json",
-        "application/xml": "text",
-        "application/zip": "blob",
-        "application/x-www-form-urlencoded": "blob",
-        "audio/mpeg": "blob",
-        "audio/x-ms-wma": "blob",
-        "audio/vnd.rn-realaudio": "blob",
-        "audio/x-wav": "blob",
-        "image/gif": "blob",   
-        "image/jpeg": "blob",   
-        "image/png": "blob",   
-        "image/tiff": "blob",    
-        "image/vnd.microsoft.icon": "blob",    
-        "image/x-icon": "blob",   
-        "image/vnd.djvu": "blob",   
-        "image/svg+xml": "text",
-        "multipart/mixed": "blob",
-        "multipart/alternative": "blob",
-        "multipart/related": "blob",
-        "multipart/form-data": "blob",
-        "text/css": "text",
-        "text/csv": "text",
-        "text/html": "text",
-        "text/javascript": "text",
-        "text/plain": "text",
-        "text/xml": "text",
-        "video/mpeg": "blob",
-        "video/mp4": "blob",
-        "video/quicktime": "blob",
-        "video/x-ms-wmv": "blob",
-        "video/x-msvideo": "blob",
-        "video/x-flv": "blob",
-        "video/webm": "blob",
-        "application/vnd.android.package-archive": "blob",
-        "application/vnd.oasis.opendocument.text": "blob",
-        "application/vnd.oasis.opendocument.spreadsheet": "blob",
-        "application/vnd.oasis.opendocument.presentation": "blob",
-        "application/vnd.oasis.opendocument.graphics": "blob",
-        "application/vnd.ms-excel": "blob",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "blob",
-        "application/vnd.ms-powerpoint": "blob",
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation": "blob",
-        "application/msword": "blob",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "blob",
-        "application/vnd.mozilla.xul+xml": "blob",
-      }
+    this.config = {
+      defaultResponseType: options.config?.defaultResponseType ?? 'text',
+      inferRequestBodyContentType: options.config?.inferRequestBodyContentType ?? false,
+      inferResponseBodyContentType: options.config?.inferResponseBodyContentType ?? false,
+      parseObjectAsJSON: options.config?.parseObjectAsJSON ?? true
     }
   }
 
-  public async dispatch(
-    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-    url: string,
-    query?: Record<string, string | undefined>,
-    body?: ApostleRequestBody,
-    responseType: ApostleResponseType = this.config.responseType ?? 'raw',
-    init: RequestInit = {},
-  ) {
+  public async dispatch({method, url, query, body, responseType, init}: ApostleRequestObject) {
     try {
+      const parsedInit = this.interceptor({...this.init, ...init})
       if (query) Object.keys(query).forEach(key => {if (query[key] === undefined || query[key] === null) delete query[key]});
-      const isBodyPlainObject = body && body.constructor === Object
-      const inferredHeaders = new Headers()
+      
+      const parseBodyAsJSON = body && body.constructor === Object && this.config.parseObjectAsJSON
+      const parsedHeaders = new Headers(parsedInit.headers)
       if (this.config.inferRequestBodyContentType) {
-        if (isBodyPlainObject) inferredHeaders.set('Content-Type', 'application/json')
+        if (parseBodyAsJSON) parsedHeaders.set('Content-Type', 'application/json')
+        // TODO: Validate that the rest is automatically inferred by the browser
       }
+
       const response = await fetch(
         `${url}?${new URLSearchParams(query as Record<string, string>)}`,
         {
-          ...this.interceptor({...this.init, ...init}),
-          headers: {...inferredHeaders, ...this.init.headers, ...init.headers},
-          body: isBodyPlainObject ? JSON.stringify(this.transformer.request(body as Record<string, string>)) : body as Exclude<ApostleRequestBody, Record<string, string>>,
+          ...parsedInit,
+          headers: parsedHeaders,
+          body: parseBodyAsJSON ? JSON.stringify(this.transformer.request(body as Record<string, string>)) : body as Exclude<ApostleRequestBody, Record<string, string>>,
           method
         }
       )
+
       if (!response.ok) throw response
-      await this.effect.onSuccess(response)
-      if (this.config.inferResponseBodyContentType) {
+
+      if (this.config.inferResponseBodyContentType && !responseType) {
         const responseContentType = response.headers.get('Content-Type')
-        if (responseContentType) responseType = this.ianaMediaTypeMethodMap![responseContentType] ?? responseType
+        if (responseContentType) {
+          if (ianaMediaTypeMethodMap[responseContentType]) responseType = ianaMediaTypeMethodMap[responseContentType]
+          else responseType = ianaRegistriesMethodMap[responseContentType.split("/")[0]]
+        }
       }
+      if (!responseType) responseType = this.config.defaultResponseType
+
+      await this.effect.onSuccess(response)
       return this.transformer.response(responseType === 'raw' ? response : await response[responseType]())
     } catch (response) {
       throw await this.effect.onError(response as Response)
@@ -136,7 +116,7 @@ export class Apostle {
   public async get(path: string | {path: string, query?: Record<string, string>}, responseType?: ApostleResponseType, init?: RequestInit) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
-      return await this.dispatch('GET', `${this.baseURL}/${pathObject.path}`, pathObject.query, undefined, responseType, init)
+      return await this.dispatch({method: 'GET', url: `${this.baseURL}${pathObject.path}`, query: pathObject.query, responseType, init})
     } catch (error) {
       throw error
     }
@@ -145,7 +125,7 @@ export class Apostle {
   public async post(path: string | {path: string, query?: Record<string, string>}, body?: ApostleRequestBody, responseType?: ApostleResponseType, init?: RequestInit) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
-      return await this.dispatch('POST', `${this.baseURL}/${pathObject.path}`, pathObject.query, body, responseType, init)
+      return await this.dispatch({method: 'POST', url: `${this.baseURL}${pathObject.path}`, query: pathObject.query, body, responseType, init})
     } catch (error) {
       throw error
     }
@@ -154,7 +134,7 @@ export class Apostle {
   public async put(path: string | {path: string, query?: Record<string, string>}, body?: ApostleRequestBody, responseType?: ApostleResponseType, init?: RequestInit) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
-      return await this.dispatch('PUT', `${this.baseURL}/${pathObject.path}`, pathObject.query, body, responseType, init)
+      return await this.dispatch({method: 'PUT', url: `${this.baseURL}${pathObject.path}`, query: pathObject.query, body, responseType, init})
     } catch (error) {
       throw error
     }
@@ -163,7 +143,7 @@ export class Apostle {
   public async patch(path: string | {path: string, query?: Record<string, string>}, body?: ApostleRequestBody, responseType?: ApostleResponseType, init?: RequestInit) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
-      return await this.dispatch('PATCH', `${this.baseURL}/${pathObject.path}`, pathObject.query, body, responseType, init)
+      return await this.dispatch({method: 'PATCH', url: `${this.baseURL}${pathObject.path}`, query: pathObject.query, body, responseType, init})
     } catch (error) {
       throw error
     }
@@ -172,7 +152,7 @@ export class Apostle {
   public async delete(path: string | {path: string, query?: Record<string, string>}, body?: ApostleRequestBody, responseType?: ApostleResponseType, init?: RequestInit) {
     try {
       const pathObject = typeof path === 'string' ? {path} : path
-      return await this.dispatch('DELETE', `${this.baseURL}/${pathObject.path}`, pathObject.query, body, responseType, init)
+      return await this.dispatch({method: 'DELETE', url: `${this.baseURL}${pathObject.path}`, query: pathObject.query, body, responseType, init})
     } catch (error) {
       throw error
     }
